@@ -285,6 +285,12 @@ operator
   (Contributed by Raymond Hettinger and Nico Mexis in :gh:`115808`.)
 
 
+datetime
+--------
+
+Add :meth:`datetime.time.strptime` and :meth:`datetime.date.strptime`.
+(Contributed by Wannes Boeykens in :gh:`41431`.)
+
 os
 --
 
@@ -318,6 +324,9 @@ pdb
   :pdbcmd:`commands` are preserved across hard-coded breakpoints.
   (Contributed by Tian Gao in :gh:`121450`.)
 
+* Added a new argument ``mode`` to :class:`pdb.Pdb`. Disabled ``restart``
+  command when :mod:`pdb` is in ``inline`` mode.
+  (Contributed by Tian Gao in :gh:`123757`.)
 
 pickle
 ------
