@@ -273,6 +273,9 @@ ctypes
   to help match a non-default ABI.
   (Contributed by Petr Viktorin in :gh:`97702`.)
 
+* The :exc:`~ctypes.COMError` exception is now public.
+  (Contributed by Jun Komoda in :gh:`126686`.)
+
 datetime
 --------
 
@@ -418,6 +421,11 @@ multiprocessing
   :func:`multiprocessing.get_context` (preferred) or change the default via
   :func:`multiprocessing.set_start_method`.
   (Contributed by Gregory P. Smith in :gh:`84559`.)
+* :mod:`multiprocessing`'s ``"forkserver"`` start method now authenticates
+  its control socket to avoid solely relying on filesystem permissions
+  to restrict what other processes could cause the forkserver to spawn workers
+  and run code.
+  (Contributed by Gregory P. Smith for :gh:`97514`.)
 * The :ref:`multiprocessing proxy objects <multiprocessing-proxy_objects>`
   for *list* and *dict* types gain previously overlooked missing methods:
 
@@ -772,6 +780,13 @@ urllib
 * Remove deprecated :class:`!URLopener` and :class:`!FancyURLopener` classes
   from :mod:`urllib.request`. They had previously raised a
   :exc:`DeprecationWarning` since Python 3.3.
+
+  ``myopener.open()`` can be replaced with :func:`~urllib.request.urlopen`,
+  and ``myopener.retrieve()`` can be replaced with
+  :func:`~urllib.request.urlretrieve`. Customizations to the opener
+  classes can be replaced by passing customized handlers to
+  :func:`~urllib.request.build_opener`.
+
   (Contributed by Barney Gale in :gh:`84850`.)
 
 Others
