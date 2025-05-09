@@ -290,13 +290,7 @@ decompress_impl(ZstdDecompressor *self, ZSTD_inBuffer *in,
     /* The first AFE check for setting .at_frame_edge flag */
     if (type == TYPE_ENDLESS_DECOMPRESSOR) {
         if (self->at_frame_edge && in->pos == in->size) {
-            _zstd_state* const mod_state = PyType_GetModuleState(Py_TYPE(self));
-            if (mod_state == NULL) {
-                return NULL;
-            }
-            ret = mod_state->empty_bytes;
-            Py_INCREF(ret);
-            return ret;
+            return Py_GetConstant(Py_CONSTANT_EMPTY_BYTES);
         }
     }
 
@@ -747,16 +741,8 @@ _zstd_ZstdDecompressor_unused_data_get_impl(ZstdDecompressor *self)
 {
     PyObject *ret;
 
-    /* Thread-safe code */
-    Py_BEGIN_CRITICAL_SECTION(self);
-
     if (!self->eof) {
-        _zstd_state* const mod_state = PyType_GetModuleState(Py_TYPE(self));
-        if (mod_state == NULL) {
-            return NULL;
-        }
-        ret = mod_state->empty_bytes;
-        Py_INCREF(ret);
+        return Py_GetConstant(Py_CONSTANT_EMPTY_BYTES);
     }
     else {
         if (self->unused_data == NULL) {
@@ -771,8 +757,6 @@ _zstd_ZstdDecompressor_unused_data_get_impl(ZstdDecompressor *self)
             Py_INCREF(ret);
         }
     }
-
-    Py_END_CRITICAL_SECTION();
 
     return ret;
 }
@@ -883,7 +867,7 @@ static PyType_Slot ZstdDecompressor_slots[] = {
     {0}
 };
 
-PyType_Spec zstddecompressor_type_spec = {
+PyType_Spec zstd_decompressor_type_spec = {
     .name = "_zstd.ZstdDecompressor",
     .basicsize = sizeof(ZstdDecompressor),
     .flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
