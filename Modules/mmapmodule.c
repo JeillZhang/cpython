@@ -120,6 +120,7 @@ typedef struct {
 #ifdef UNIX
     int fd;
     _Bool trackfd;
+    int flags;
 #endif
 
     PyObject *weakreflist;
@@ -739,7 +740,7 @@ mmap_size_method(PyObject *op, PyObject *Py_UNUSED(ignored))
 #endif /* MS_WINDOWS */
 
 #ifdef UNIX
-    {
+    if (self->fd != -1) {
         struct _Py_stat_struct status;
         if (_Py_fstat(self->fd, &status) == -1)
             return NULL;
@@ -748,6 +749,14 @@ mmap_size_method(PyObject *op, PyObject *Py_UNUSED(ignored))
 #else
         return PyLong_FromLong(status.st_size);
 #endif
+    }
+    else if (self->trackfd) {
+        return PyLong_FromSsize_t(self->size);
+    }
+    else {
+        PyErr_SetString(PyExc_ValueError,
+            "can't get size with trackfd=False");
+        return NULL;
     }
 #endif /* UNIX */
 }
@@ -882,6 +891,13 @@ mmap_resize_method(PyObject *op, PyObject *args)
 #else
         void *newmap;
 
+#ifdef __linux__
+        if (self->fd == -1 && !(self->flags & MAP_PRIVATE) && new_size > self->size) {
+            PyErr_Format(PyExc_ValueError,
+                "mmap: can't expand a shared anonymous mapping on Linux");
+            return NULL;
+        }
+#endif
         if (self->fd != -1 && ftruncate(self->fd, self->offset + new_size) == -1) {
             PyErr_SetFromErrno(PyExc_OSError);
             return NULL;
@@ -1678,6 +1694,7 @@ new_mmap_object(PyTypeObject *type, PyObject *args, PyObject *kwdict)
     else {
         m_obj->fd = -1;
     }
+    m_obj->flags = flags;
 
     Py_BEGIN_ALLOW_THREADS
     m_obj->data = mmap(NULL, map_size, prot, flags, fd, offset);
