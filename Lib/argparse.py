@@ -353,8 +353,14 @@ class HelpFormatter(object):
             if len(prefix) + len(self._decolor(usage)) > text_width:
 
                 # break usage into wrappable parts
-                opt_parts = self._get_actions_usage_parts(optionals, groups)
-                pos_parts = self._get_actions_usage_parts(positionals, groups)
+                # keep optionals and positionals together to preserve
+                # mutually exclusive group formatting (gh-75949)
+                all_actions = optionals + positionals
+                parts, pos_start = self._get_actions_usage_parts_with_split(
+                    all_actions, groups, len(optionals)
+                )
+                opt_parts = parts[:pos_start]
+                pos_parts = parts[pos_start:]
 
                 # helper for wrapping lines
                 def get_lines(parts, indent, prefix=None):
@@ -418,6 +424,17 @@ class HelpFormatter(object):
         return len(string) > 2
 
     def _get_actions_usage_parts(self, actions, groups):
+        parts, _ = self._get_actions_usage_parts_with_split(actions, groups)
+        return parts
+
+    def _get_actions_usage_parts_with_split(self, actions, groups, opt_count=None):
+        """Get usage parts with split index for optionals/positionals.
+
+        Returns (parts, pos_start) where pos_start is the index in parts
+        where positionals begin. When opt_count is None, pos_start is None.
+        This preserves mutually exclusive group formatting across the
+        optionals/positionals boundary (gh-75949).
+        """
         # find group indices and identify actions in groups
         group_actions = set()
         inserts = {}
@@ -450,16 +467,12 @@ class HelpFormatter(object):
             # produce all arg strings
             elif not action.option_strings:
                 default = self._get_default_metavar_for_positional(action)
-                part = (
-                    t.summary_action
-                    + self._format_args(action, default)
-                    + t.reset
-                )
-
+                part = self._format_args(action, default)
                 # if it's in a group, strip the outer []
                 if action in group_actions:
                     if part[0] == '[' and part[-1] == ']':
                         part = part[1:-1]
+                part = t.summary_action + part + t.reset
 
             # produce the first way to invoke the option in brackets
             else:
@@ -513,8 +526,16 @@ class HelpFormatter(object):
             for i in range(start + group_size, end):
                 parts[i] = None
 
-        # return the usage parts
-        return [item for item in parts if item is not None]
+        # if opt_count is provided, calculate where positionals start in
+        # the final parts list (for wrapping onto separate lines).
+        # Count before filtering None entries since indices shift after.
+        if opt_count is not None:
+            pos_start = sum(1 for p in parts[:opt_count] if p is not None)
+        else:
+            pos_start = None
+
+        # return the usage parts and split point (gh-75949)
+        return [item for item in parts if item is not None], pos_start
 
     def _format_text(self, text):
         if '%(prog)' in text:
@@ -1983,14 +2004,16 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
             self._subparsers = self._positionals
 
         # prog defaults to the usage message of this parser, skipping
-        # optional arguments and with no "usage:" prefix
+        # non-required optional arguments and with no "usage:" prefix
         if kwargs.get('prog') is None:
             # Create formatter without color to avoid storing ANSI codes in prog
             formatter = self.formatter_class(prog=self.prog)
             formatter._set_color(False)
             positionals = self._get_positional_actions()
+            required_optionals = [action for action in self._get_optional_actions()
+                                  if action.required]
             groups = self._mutually_exclusive_groups
-            formatter.add_usage(None, positionals, groups, '')
+            formatter.add_usage(None, required_optionals + positionals, groups, '')
             kwargs['prog'] = formatter.format_help().strip()
 
         # create the parsers action and add it to the positionals list
