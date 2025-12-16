@@ -164,7 +164,7 @@ This table summarizes the comparison operations:
    pair: object; numeric
    pair: objects; comparing
 
-Objects of different types, except different numeric types, never compare equal.
+Unless stated otherwise, objects of different types never compare equal.
 The ``==`` operator is always defined but for some object types (for example,
 class objects) is equivalent to :keyword:`is`. The ``<``, ``<=``, ``>`` and ``>=``
 operators are only defined where they make sense; for example, they raise a
@@ -2260,6 +2260,19 @@ expression support in the :mod:`re` module).
    Return the string left justified in a string of length *width*. Padding is
    done using the specified *fillchar* (default is an ASCII space). The
    original string is returned if *width* is less than or equal to ``len(s)``.
+
+   For example:
+
+   .. doctest::
+
+      >>> 'Python'.ljust(10)
+      'Python    '
+      >>> 'Python'.ljust(10, '.')
+      'Python....'
+      >>> 'Monty Python'.ljust(10, '.')
+      'Monty Python'
+
+   See also :meth:`rjust`.
 
 
 .. method:: str.lower()
@@ -5086,9 +5099,6 @@ can be used interchangeably to index the same dictionary entry.
    added to the dictionary created from the positional argument.  If a key
    being added is already present, the value from the keyword argument
    replaces the value from the positional argument.
-
-   Providing keyword arguments as in the first example only works for keys that
-   are valid Python identifiers.  Otherwise, any valid keys can be used.
 
    Dictionaries compare equal if and only if they have the same ``(key,
    value)`` pairs (regardless of ordering). Order comparisons ('<', '<=', '>=', '>') raise
