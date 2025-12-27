@@ -1382,6 +1382,18 @@ class ByteArrayTest(BaseBytesTest, unittest.TestCase):
             except OSError:
                 pass
 
+    def test_mod_concurrent_mutation(self):
+        # Prevent crash in __mod__ when formatting mutates the bytearray.
+        # Regression test for https://github.com/python/cpython/issues/142557.
+        fmt = bytearray(b"%a end")
+
+        class S:
+            def __repr__(self):
+                fmt.clear()
+                return "E"
+
+        self.assertRaises(BufferError, fmt.__mod__, S())
+
     def test_reverse(self):
         b = bytearray(b'hello')
         self.assertEqual(b.reverse(), None)
@@ -2091,6 +2103,19 @@ class ByteArrayTest(BaseBytesTest, unittest.TestCase):
             ba.split(evil)
         with self.assertRaises(BufferError):
             ba.rsplit(evil)
+
+    def test_hex_use_after_free(self):
+        # Prevent UAF in bytearray.hex(sep) with re-entrant sep.__len__.
+        # Regression test for https://github.com/python/cpython/issues/143195.
+        ba = bytearray(b'\xAA')
+
+        class S(bytes):
+            def __len__(self):
+                ba.clear()
+                return 1
+
+        self.assertRaises(BufferError, ba.hex, S(b':'))
+
 
 class AssortedBytesTest(unittest.TestCase):
     #
