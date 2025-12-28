@@ -1859,6 +1859,21 @@ class TestUopsOptimization(unittest.TestCase):
         self.assertNotIn("_GUARD_NOS_TUPLE", uops)
         self.assertIn("_BINARY_OP_SUBSCR_TUPLE_INT", uops)
 
+    def test_remove_guard_for_tuple_bounds_check(self):
+        def f(n):
+            x = 0
+            for _ in range(n):
+                t = (1, 2, 3)
+                x += t[0]
+            return x
+
+        res, ex = self._run_with_optimizer(f, TIER2_THRESHOLD)
+        self.assertEqual(res, TIER2_THRESHOLD)
+        self.assertIsNotNone(ex)
+        uops = get_opnames(ex)
+        self.assertNotIn("_GUARD_BINARY_OP_SUBSCR_TUPLE_INT_BOUNDS", uops)
+        self.assertIn("_BINARY_OP_SUBSCR_TUPLE_INT", uops)
+
     def test_binary_subcsr_str_int_narrows_to_str(self):
         def testfunc(n):
             x = []
@@ -3290,6 +3305,48 @@ class TestUopsOptimization(unittest.TestCase):
 
         for i in range(TIER2_THRESHOLD * 10):
             f1()
+
+    def test_143183(self):
+        # https://github.com/python/cpython/issues/143183
+
+        result = script_helper.run_python_until_end('-c', textwrap.dedent(f"""
+        def f1():
+            class AsyncIter:
+                def __init__(self):
+                    self.limit = 0
+                    self.count = 0
+
+                def __aiter__(self):
+                    return self
+
+                async def __anext__(self):
+                    if self.count >= self.limit:
+                        ...
+                    self.count += 1j
+
+            class AsyncCtx:
+                async def async_for_driver():
+                    try:
+                        for _ in range({TIER2_THRESHOLD}):
+                            try:
+                                async for _ in AsyncIter():
+                                    ...
+                            except TypeError:
+                                ...
+                    except Exception:
+                        ...
+
+                c = async_for_driver()
+                while True:
+                    try:
+                        c.send(None)
+                    except StopIteration:
+                        break
+
+        for _ in range({TIER2_THRESHOLD // 40}):
+            f1()
+        """), PYTHON_JIT="1")
+        self.assertEqual(result[0].rc, 0, result)
 
 def global_identity(x):
     return x
